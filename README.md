@@ -3,10 +3,8 @@
 ## Authors:
 TowardsFullyCovariantML contains the codes to reproduce the experiments in the Transactions on Machine Learning Research paper (to appear) [Towards fully covariant machine learning](https://arxiv.org/abs/2301.13724).
 
-Some contributor names appear to the right of this GitHub page because we imported their codes from their public GitHub repository [equivariant-MLP](https://github.com/mfinzi/equivariant-MLP.git).
-
 ## Introduction
-This GitHub repository links to codes for the following three experiments in the paper.
+This GitHub repository provides notebooks to reproduce the following three experiments in the paper.
 
 ### Passive symmetry of units covariance on black-body radiation
 In this example, we generate noisy samples of electromagnetic radiation intensity $B_{\lambda}(\lambda)$ 
@@ -20,8 +18,6 @@ We conducted three experiments, (A) a units-covariant regression using only $\la
 (C) a standard multi-layer perceptron regression (MLP) with no units constraints
 We found that the units-covariant model that learns an extra constant (with units consistent with $h$)
 can outperform the baseline MLP with no units constraints, suggesting passive symmetry brings new capabilities.
-
-The codes are provided in [this repository](https://github.com/davidwhogg/LearnDimensionalConstant). 
 
 ### Passive *O*(3) symmetry example on springy double pendulum
 In this example, we consider the dissipationless spherical double pendulum with springs, with a pivot $o$ and two
@@ -47,8 +43,6 @@ In this experiment, we consider the three models:
 and (learned-g) an *O*(3)-equivariant model that uses the position and momenta as well as an unknown vector that the model learns. 
 The results show that *O*(3)-equivariance permits the learning of the gravity vector from data with only minimal impact on performance.
 
-The codes are provided in [this repository](https://github.com/weichiyao/ScalarEMLP/tree/learn-g).
-
 
 ### Covariant vs non-covariant data normalization example on springy double pendulum
 To make contemporary neural network models numerically stable, it is conventional to normalize the input
@@ -59,7 +53,5 @@ However, naïve normalization will in general break the passive symmetries of ge
 We again use the springy double pendulum as an example 
 and empirically show that non-covariant data normalization can lead to severely downgraded performance, 
 whereas covariant data normalization does not.
-
-The codes are provided in [this repository](https://github.com/weichiyao/ScalarEMLP/tree/normalization).
 
 
