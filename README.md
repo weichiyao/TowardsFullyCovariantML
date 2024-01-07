@@ -19,6 +19,11 @@ We conducted three experiments, (A) a units-covariant regression using only $\la
 We found that the units-covariant model that learns an extra constant (with units consistent with $h$)
 can outperform the baseline MLP with no units constraints, suggesting passive symmetry brings new capabilities.
 
+
+The notebook to reproduce the experimental results are provided in the subfolder [black_body_radiation](https://github.com/weichiyao/TowardsFullyCovariantML/tree/main/black_body_radiation), transferred from this 
+[Github repository](https://github.com/davidwhogg/LearnDimensionalConstant). 
+
+
 ### Passive *O*(3) symmetry example on springy double pendulum
 In this example, we consider the dissipationless spherical double pendulum with springs, with a pivot $o$ and two
 masses connected by springs. The kinetic energy $\mathcal{T}$ and potential energy $\mathcal{U}$ of the system are given by
@@ -43,6 +48,8 @@ In this experiment, we consider the three models:
 and (learned-g) an *O*(3)-equivariant model that uses the position and momenta as well as an unknown vector that the model learns. 
 The results show that *O*(3)-equivariance permits the learning of the gravity vector from data with only minimal impact on performance.
 
+To reproduce the experimental results, please find the [notebook](https://github.com/weichiyao/TowardsFullyCovariantML/blob/main/springy_double_pendulum/passive_O3_symmetry.ipynb) under the subfolder [springy_double_pendulum](https://github.com/weichiyao/TowardsFullyCovariantML/tree/main/springy_double_pendulum). 
+It depends on the [ScalarEMLP](https://github.com/weichiyao/ScalarEMLP) package. 
 
 ### Covariant vs non-covariant data normalization example on springy double pendulum
 To make contemporary neural network models numerically stable, it is conventional to normalize the input
@@ -54,4 +61,5 @@ We again use the springy double pendulum as an example
 and empirically show that non-covariant data normalization can lead to severely downgraded performance, 
 whereas covariant data normalization does not.
 
-
+To reproduce the experimental results, please find the [notebook](https://github.com/weichiyao/TowardsFullyCovariantML/blob/main/springy_double_pendulum/data_normalization.ipynb) under the subfolder [springy_double_pendulum](https://github.com/weichiyao/TowardsFullyCovariantML/tree/main/springy_double_pendulum). 
+It depends on the [ScalarEMLP](https://github.com/weichiyao/ScalarEMLP) package. 
