@@ -1,3 +1,5 @@
+# Taken from https://github.com/mfinzi/equivariant-MLP/blob/master/experiments/trainer/utils.py
+
 import jax
 import functools
 from oil.utils.utils import imap

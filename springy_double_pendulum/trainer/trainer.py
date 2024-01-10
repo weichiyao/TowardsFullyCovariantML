@@ -1,11 +1,13 @@
-import dill
+# Adapted from https://github.com/mfinzi/equivariant-MLP/blob/master/experiments/trainer/trainer.py
+
 from oil.logging.lazyLogger import LazyLogger
-from oil.utils.utils import Eval, Named
+from oil.utils.utils import Named, export
 from oil.utils.mytqdm import tqdm
 from oil.tuning.study import guess_metric_sign
-import copy, os, random
+import copy
 import objax
 
+@export
 class Trainer(object,metaclass=Named):
     """ Base trainer
         """
@@ -111,21 +113,3 @@ class Trainer(object,metaclass=Named):
             # 'logger_state':self.logger.state_dict(),
         }
         return state
-
-    # def load_state_dict(self,state):
-    #     self.epoch = state['epoch']
-    #     self.model.load_state_dict(state['model_state'])
-    #     self.optimizer.load_state_dict(state['optim_state'])
-    #     self.logger.load_state_dict(state['logger_state'])
-
-    # def load_checkpoint(self,path=None):
-    #     """ Loads the checkpoint from path, if None gets the highest epoch checkpoint"""
-    #     if not path:
-    #         chkpts = glob.glob(os.path.join(self.logger.log_dirr,'checkpoints/c*.state'))
-    #         path = natsorted(chkpts)[-1] # get most recent checkpoint
-    #         print(f"loading checkpoint {path}")
-    #     with open(path,'rb') as f:
-    #         self.load_state_dict(dill.load(f))
-
-    # def save_checkpoint(self):
-    #     return self.logger.save_object(self.ckpt,suffix=f'checkpoints/c{self.epoch}.state')

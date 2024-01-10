@@ -1,4 +1,6 @@
-from scalaremlp.utils import export
+# Adapted from https://github.com/mfinzi/equivariant-MLP/blob/master/experiments/trainer/trainer.py
+
+from oil.utils.utils import export
 from .trainer import Trainer
 import jax
 import jax.numpy as jnp

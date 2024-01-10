@@ -1,3 +1,5 @@
+# Adapted from https://github.com/mfinzi/equivariant-MLP/blob/master/experiments/trainer/hamiltonian_dynamics.py
+
 import jax 
 from jax import grad, jit, vmap 
 from jax.experimental.ode import odeint
@@ -12,8 +14,6 @@ from torch.utils.data import Dataset
 import numpy as np 
 from functools import partial 
 
-from scalaremlp.groups import SO2eR3,O2eR3,DkeR3,Trivial
-from scalaremlp.reps import T,Scalar
 from .classifier import Regressor 
 #from emlp_jax.model_trainer import RegressorPlus
 
@@ -157,11 +157,8 @@ class HamiltonianDataset(Dataset):
 class DoubleSpringPendulum(HamiltonianDataset):
     """ The double spring pendulum dataset described in the paper."""
     def __init__(self,*args,**kwargs):
-        super().__init__(*args,**kwargs)
-        self.rep_in = 4*T(1)#Vector
-        self.rep_out = T(0)#Scalar
-        self.symmetry = O2eR3()
-        self.stats = (0,1,0,1)
+        super().__init__(*args,**kwargs) 
+        
     def H(self,z):
         g=1
         m1,m2,k1,k2,l1,l2 = 1,1,1,1,1,1
