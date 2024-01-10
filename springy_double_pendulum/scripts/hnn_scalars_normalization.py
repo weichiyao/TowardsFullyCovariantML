@@ -2,7 +2,7 @@ import os
 import jax.numpy as jnp
 import jax.random as jr
 jr.PRNGKey(42)
-from scalarhnn.scalarhnn import InvarianceLayer_objax 
+from scalaremlp_fc.scalarhnn import InvarianceLayer_objax 
 from trainer.hamiltonian_dynamics import IntegratedDynamicsNormalizationTrainer,DoubleSpringPendulum,hnnScalars_trial
 from trainer.hamiltonian_dynamics import generate_trajectory_wz0s, GetHamiltonianDataset, GetHamiltonianDatasetWrapped
 from torch.utils.data import DataLoader
