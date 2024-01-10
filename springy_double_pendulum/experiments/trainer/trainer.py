@@ -10,6 +10,7 @@ class Trainer(object,metaclass=Named):
     """ Base trainer
         """
     def __init__(self, model, dataloaders, optim = objax.optimizer.Adam,lr_sched =lambda e:1,
+                normalization={'method':'none', 'xmean':0., 'xstd':1., 'ymean':0., 'ystd':1.},
                 log_dir=None, log_suffix='',log_args={},early_stop_metric=None):
         # Setup model, optimizer, and dataloaders
         self.model = model#
@@ -36,6 +37,8 @@ class Trainer(object,metaclass=Named):
         
         self.gradvals = objax.GradValues(self.loss,self.model.vars())
         #self.gradvals = objax.Jit(objax.GradValues(fastloss,model.vars()),model.vars())
+        self.normalization = normalization
+    
     def metrics(self,loader):
         return {}
 
@@ -71,6 +74,7 @@ class Trainer(object,metaclass=Named):
         #     except (NotImplementedError, TypeError): pass
         for loader_name,dloader in self.dataloaders.items(): # Ignore metrics on train
             if loader_name=='train' or len(dloader)==0 or loader_name[0]=='_': continue
+            if (self.normalization['method']!="none") and (loader_name=='val' or loader_name=='test'): continue # we redefine how we compute for normalization
             for metric_name, metric_value in self.metrics(dloader).items():
                 metrics[loader_name+'_'+metric_name] = metric_value
         self.logger.add_scalars('metrics', metrics, step)

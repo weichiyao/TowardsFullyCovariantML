@@ -1,10 +1,10 @@
 import jax 
-from jax import grad, jit, vmap, jacfwd, jvp, vjp, random
+from jax import grad, jit, vmap 
 from jax.experimental.ode import odeint
 import jax.numpy as jnp
 import objax
 from oil.tuning.configGenerator import flatten_dict
-from oil.utils.utils import export
+from oil.utils.utils import export, Wrapper
  
 import os
 import torch  
@@ -14,7 +14,7 @@ from functools import partial
 
 from scalaremlp.groups import SO2eR3,O2eR3,DkeR3,Trivial
 from scalaremlp.reps import T,Scalar
-from .classifier import Regressor,Classifier
+from .classifier import Regressor 
 #from emlp_jax.model_trainer import RegressorPlus
 
 ## Code to rollout a Hamiltonian system
@@ -77,22 +77,29 @@ class HamiltonianDataset(Dataset):
                 with the same arguments. If false, will use trajectories saved at {filename}
         Returns:
             Dataset: A (torch style) dataset.  """
-    def __init__(self,n_systems=100,chunk_len=5,dt=0.2,integration_time=30,regen=False):
+    def __init__(self,n_systems=100,chunk_len=5,dt=0.2,integration_time=30,regen=False, root_dir=None):
         super().__init__()
-        root_dir = os.path.expanduser(f"~/datasets/ODEDynamics/{self.__class__}/")
-        filename = os.path.join(root_dir, f"trajectories_{n_systems}_{chunk_len}_{dt}_{integration_time}.pz")
+        self.root_dir = root_dir
+        if self.root_dir is None:
+            self.root_dir = os.path.expanduser(f"~/datasets/ODEDynamics/{self.__class__}/")
+        self.filename = os.path.join(root_dir, f"trajectories_{n_systems}_{chunk_len}_{dt}_{integration_time}.pz")
 
-        if os.path.exists(filename) and not regen:
-            Zs = torch.load(filename)
+        if os.path.exists(self.filename) and not regen:
+            print(f"Loading datasets from {self.filename}...")
+            Zs = torch.load(self.filename)['Zs']
+            Zs_long = torch.load(self.filename)['Zs_long']
         else:
-            zs = self.generate_trajectory_data(n_systems, dt, integration_time)
-            Zs = np.asarray(self.chunk_training_data(zs, chunk_len))
-            os.makedirs(root_dir, exist_ok=True)
-            torch.save(Zs, filename)
+            print(f"File {self.filename} does not exist or regen=True. Creating the datasets...")
+            Zs_long = self.generate_trajectory_data(n_systems, dt, integration_time)
+            Zs = np.asarray(self.chunk_training_data(Zs_long, chunk_len))
+            os.makedirs(self.root_dir, exist_ok=True)
+            print(f"Saving file {self.filename}...")
+            torch.save({'Zs':Zs, 'Zs_long':Zs_long}, self.filename)
         
-        self.Zs = Zs
+        self.Zs_long = Zs_long
+        self.Zs = Zs 
         self.T = np.asarray(jnp.arange(0, chunk_len*dt, dt))
-        self.T_long = np.asarray(jnp.arange(0,integration_time,dt))
+        self.T_long = np.asarray(jnp.arange(0,integration_time,dt)) 
 
     def __len__(self):
         return self.Zs.shape[0]
@@ -110,7 +117,7 @@ class HamiltonianDataset(Dataset):
         while n_gen < n_systems:
             z0s = self.sample_initial_conditions(bs)
             ts = jnp.arange(0, integration_time, dt)
-            new_zs = BHamiltonianFlow(self.H,z0s, ts)
+            new_zs = BHamiltonianFlow(self.H, z0s, ts)
             z_batches.append(new_zs)
             n_gen += bs
         zs = jnp.concatenate(z_batches, axis=0)[:n_systems]
@@ -146,7 +153,7 @@ class HamiltonianDataset(Dataset):
         xt = xt.reshape((xt.shape[0],-1,3))
         anim = self.animator(xt)
         return anim.animate()
- 
+
 class DoubleSpringPendulum(HamiltonianDataset):
     """ The double spring pendulum dataset described in the paper."""
     def __init__(self,*args,**kwargs):
@@ -199,6 +206,75 @@ class IntegratedDynamicsTrainer(Regressor):
         print(step, metrics)
         self.logger.add_scalars('metrics', metrics, step)
         super().logStuff(step,minibatch)
+
+class IntegratedDynamicsNormalizationTrainer(Regressor):
+    """ A trainer for training the Hamiltonian Neural Networks. Feel free to use your own instead."""
+    def __init__(self,model,*args,**kwargs):
+        super().__init__(model,*args,**kwargs)
+        self.loss = objax.Jit(self.loss,model.vars())
+        self.gradvals = objax.Jit(objax.GradValues(self.loss,model.vars()))
+    
+    def loss(self, minibatch):
+        """ Standard cross-entropy loss """
+        (z0, ts), true_zs = minibatch
+        # z0      (n, 12)
+        # ts      (n, T)
+        # true_zs (n, T, 12)
+        pred_zs = BHamiltonianFlow(self.model, z0, ts[0])        
+        return jnp.mean((pred_zs - true_zs)**2)
+    
+    def loss_test(self, minibatch):
+        """ Standard cross-entropy loss """
+        (z0, ts), true_zs = minibatch
+        # z0      (n, 12)
+        # ts      (n, T)
+        # true_zs (n, T, 12)
+
+        ## Normalize the input:
+        if self.normalization['method'] == "covariant":
+            z0_re = z0.reshape(-1,4,3)
+            z0_q=(z0_re[...,:2,:] - self.normalization['xmean_q']) @ self.normalization['xstd_inv_q']
+            z0_p=(z0_re[...,2:,:] - self.normalization['xmean_p']) @ self.normalization['xstd_inv_p']
+            z0_normalized = jnp.concatenate([z0_q,z0_p],axis=-2).reshape(-1,12) # (n, 12)
+        elif self.normalization['method'] == 'colwise':
+            z0_normalized = (z0 - self.normalization['xmean']) / self.normalization['xstd']
+        else:
+            z0_normalized = z0
+
+        pred_zs = BHamiltonianFlow(self.model, z0_normalized, ts[0])
+         
+        if self.normalization['method'] == "covariant":
+            pred_zs_re = pred_zs.reshape(*pred_zs.shape[:-1],4,3)
+            zq = pred_zs_re[...,:2,:] @ self.normalization['xstd_q'] +self.normalization['xmean_q']
+            zp = pred_zs_re[...,2:,:] @ self.normalization['xstd_p'] +self.normalization['xmean_p']
+            pred_zs = jnp.concatenate([zq,zp], axis=-2).reshape(*pred_zs.shape[:-1], 12)   # (n, T_long, 12)
+        elif self.normalization['method'] == 'colwise':
+            pred_zs = pred_zs * self.normalization['xstd'] + self.normalization['xmean'] 
+
+        return jnp.mean((pred_zs - true_zs)**2)
+
+    def metrics(self, loader):
+        mse = lambda mb: np.asarray(self.loss(mb))
+        return {"MSE": self.evalAverageMetrics(loader, mse)}
+    
+    def logStuff(self, step, minibatch=None):
+        for split in ['val', 'test']:
+            loader = self.dataloaders[split] 
+
+            log_rollout_error_fn_on_x = lambda x: log_rollout_error(
+                model = self.model, 
+                minibatch = x,
+                normalization=self.normalization
+            )
+            metrics_rout = {f'{split}_Rollout': np.exp(self.evalAverageMetrics(loader,log_rollout_error_fn_on_x))} 
+            
+            msetest = lambda mb: np.asarray(self.loss_test(mb))
+            metrics_msec = {f'{split}_MSE': self.evalAverageMetrics(loader, msetest)} 
+
+            self.logger.add_scalars('metrics', metrics_rout, step)
+            self.logger.add_scalars('metrics', metrics_msec, step)
+        super().logStuff(step,minibatch)
+
 
 def rel_err(a,b):
     """ Relative error |a-b|/|a+b|"""
