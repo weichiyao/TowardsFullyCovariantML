@@ -1,4 +1,4 @@
-from model.scalaremlp import InvarianceLayer_objax 
+from scalaremlp_fc.scalarhnn import InvarianceLayer_objax 
 from trainer.hamiltonian_dynamics import IntegratedDynamicsTrainer,DoubleSpringPendulum,hnnScalars_trial
 from torch.utils.data import DataLoader
 from oil.utils.utils import cosLr,FixedNumpySeed,FixedPytorchSeed

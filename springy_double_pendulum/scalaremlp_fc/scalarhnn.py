@@ -1,22 +1,13 @@
-import jax
 import jax.numpy as jnp
 import objax.nn as nn
 import objax.functional as F
 import numpy as np  
 from objax.module import Module 
+from scalaremlp_fc.utils import Named,export
 
 def Sequential(*args):
     """ Wrapped to mimic pytorch syntax"""
     return nn.Sequential(args)
-
-def radial_basis_transform(x, nrad = 100):
-    """
-    x is a vector
-    """
-    xmax, xmin = x.max(), x.min()
-    gamma = 2*(xmax - xmin)/(nrad - 1)
-    mu    = np.linspace(start=xmin, stop=xmax, num=nrad)
-    return mu, gamma
 
 def comp_inner_products_jax(x, take_sqrt=True):
     """
@@ -52,6 +43,7 @@ class BasicMLP_objax(Module):
     def __call__(self,x,training=True):
         return self.mlp(x)
 
+@export
 class InvarianceLayer_objax(Module):
     def __init__(
         self,  
