@@ -10,7 +10,6 @@ def Sequential(*args):
     """ Wrapped to mimic pytorch syntax"""
     return nn.Sequential(args)
 
-@export
 def radial_basis_transform(x, nrad = 100):
     """
     x is a vector
@@ -34,7 +33,6 @@ def comp_inner_products_jax(x, take_sqrt=True):
         scalars = jnp.concatenate([xxsqrt, scalars], axis = -1)  # (n, 20)
     return scalars 
 
-@export
 class BasicMLP_objax(Module):
     def __init__(
         self, 
@@ -55,7 +53,6 @@ class BasicMLP_objax(Module):
     def __call__(self,x,training=True):
         return self.mlp(x)
 
-@export
 class InvarianceLayer_objax(Module):
     def __init__(
         self,  
