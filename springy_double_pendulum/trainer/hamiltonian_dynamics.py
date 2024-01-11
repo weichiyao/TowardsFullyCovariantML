@@ -54,13 +54,6 @@ def BHamiltonianFlow(H,z0,T,tol=1e-4):
     dynamics = jit(vmap(jit(partial(hamiltonian_dynamics,H)),(0,None)))
     return odeint(dynamics, z0, T, rtol=tol).transpose((1,0,2))
 
-def BOdeFlow(dynamics,z0,T,tol=1e-4):
-    """ Batched integration of ODE dynamics into rollout trajectories.
-        Given dynamics (state_dim->state_dim) and z0 of shape (bs,state_dim)
-        and T of shape (t,) outputs trajectories (bs,t,state_dim) """
-    dynamics = vmap(dynamics,(0,None))
-    return odeint(dynamics, z0, T, rtol=tol).transpose((1,0,2))
-
 class HamiltonianDataset(Dataset):
     """ A dataset that generates trajectory chunks from integrating the Hamiltonian dynamics
         from a given Hamiltonian system and initial condition distribution.
@@ -258,7 +251,7 @@ class IntegratedDynamicsNormalizationTrainer(Regressor):
         for split in ['val', 'test']:
             loader = self.dataloaders[split] 
 
-            log_rollout_error_fn_on_x = lambda x: log_rollout_error(
+            log_rollout_error_fn_on_x = lambda x: log_rollout_error_normalization(
                 model = self.model, 
                 minibatch = x,
                 normalization=self.normalization
@@ -271,7 +264,6 @@ class IntegratedDynamicsNormalizationTrainer(Regressor):
             self.logger.add_scalars('metrics', metrics_rout, step)
             self.logger.add_scalars('metrics', metrics_msec, step)
         super().logStuff(step,minibatch)
-
 
 def rel_err(a,b):
     """ Relative error |a-b|/|a+b|"""
@@ -289,11 +281,73 @@ def log_rollout_error(ds,model,minibatch):
     log_geo_mean = jnp.log(clamped_errs).mean()
     return log_geo_mean
 
+def log_rollout_error_normalization(model, minibatch, normalization={'method':'none'}):
+    """ Computes the log of the geometric mean of the rollout
+        error computed between the dataset ds and HNN model
+        on the initial condition in the minibatch."""
+    (z0, ts), true_zs = minibatch
+    
+    ## Normalize the input:
+    if normalization['method'] == "covariant":
+        z0_re = z0.reshape(-1,4,3)
+        z0_q=(z0_re[...,:2,:] - normalization['xmean_q']) @ normalization['xstd_inv_q']
+        z0_p=(z0_re[...,2:,:] - normalization['xmean_p']) @ normalization['xstd_inv_p']
+        z0_normalized = jnp.concatenate([z0_q,z0_p],axis=-2).reshape(-1,12) # (n, 12)
+    elif normalization['method'] == 'colwise':
+        z0_normalized = (z0 - normalization['xmean']) / normalization['xstd']
+    elif normalization['method'] == 'none':
+        z0_normalized = z0
+    else:
+        print(f"Received normalization_method={normalization_method}. Only allowed 'covariant', 'colwise', 'none'.")
+    
+    pred_zs = BHamiltonianFlow(model, z0_normalized, ts[0]) # (n, ds.T_long, 12)
+    if normalization['method'] == "covariant":
+        pred_zs_re = pred_zs.reshape(*pred_zs.shape[:-1],4,3)
+        zq = pred_zs_re[...,:2,:] @ normalization['xstd_q'] + normalization['xmean_q']
+        zp = pred_zs_re[...,2:,:] @ normalization['xstd_p'] + normalization['xmean_p']
+        pred_zs = jnp.concatenate([zq,zp], axis=-2).reshape(*pred_zs.shape[:-1], 12)   # (n, T_long, 12)
+    elif normalization['method'] == 'colwise':
+        pred_zs = pred_zs * normalization['xstd'] + normalization['xmean'] 
+    
+    errs = vmap(vmap(rel_err))(pred_zs, true_zs) # (bs,T_long)
+        
+    clamped_errs = jax.lax.clamp(1e-7,errs,np.inf)
+    log_geo_mean = jnp.log(clamped_errs).mean()
+    return log_geo_mean
+   
 def pred_and_gt(ds,model,minibatch):
     (z0, _), _ = minibatch
     pred_zs = BHamiltonianFlow(model,z0,ds.T_long,tol=2e-6)
     gt_zs  = BHamiltonianFlow(ds.H,z0,ds.T_long,tol=2e-6)
     return np.stack([pred_zs,gt_zs],axis=-1)
+
+def pred_and_gt_normalization(model, minibatch, normalization={'method':'none'}):
+    (z0, ts), true_zs = minibatch
+    ## Normalize the input:
+    if normalization['method'] == "covariant":
+        z0_re = z0.reshape(-1,4,3)
+        z0_q=(z0_re[...,:2,:] - normalization['xmean_q']) @ normalization['xstd_inv_q']
+        z0_p=(z0_re[...,2:,:] - normalization['xmean_p']) @ normalization['xstd_inv_p']
+        z0_normalized = jnp.concatenate([z0_q,z0_p],axis=-2).reshape(-1,12) # (n, 12)
+    elif normalization['method'] == 'colwise':
+        z0_normalized = (z0 - normalization['xmean']) / normalization['xstd']
+    elif normalization['method'] == 'none':
+        z0_normalized = z0
+    else:
+        print(f"Received normalization_method={normalization_method}. Only allowed 'covariant', 'colwise', 'none'.")
+    
+    ## Prediction
+    pred_zs = BHamiltonianFlow(model, z0_normalized, ts[0])
+    if normalization['method'] == "covariant":
+        pred_zs_re = pred_zs.reshape(*pred_zs.shape[:-1],4,3)
+        zq = pred_zs_re[...,:2,:] @ normalization['xstd_q'] + normalization['xmean_q']
+        zp = pred_zs_re[...,2:,:] @ normalization['xstd_p'] + normalization['xmean_p']
+        pred_zs = jnp.concatenate([zq,zp], axis=-2).reshape(*pred_zs.shape[:-1], 12)   # (n, T_long, 12)
+    elif normalization['method'] == 'colwise':
+        pred_zs = pred_zs * normalization['xstd'] + normalization['xmean'] 
+    
+    outputs = np.stack([pred_zs,true_zs],axis=-1)
+    return outputs
  
 def generate_trajectory_wz0s(H, z0s, ts, bs=512):
     """ a Hamiltonian H and initial conditions z0s
@@ -474,6 +528,40 @@ class hnnScalars_trial(object):
             for mb in trainer.dataloaders['test']:
                 trajectories.append(pred_and_gt(trainer.dataloaders['test'].dataset,trainer.model,mb))
             torch.save(np.concatenate(trajectories),f"{cfg['trainer_config']['log_dir']}/{'scalars_HNNs'}_{i}.t")
+        except Exception as e:
+            if self.strict: raise
+            outcome = e
+        del trainer
+        return cfg, outcome
+
+@export
+class hnnScalars_normalization_trial(object):
+    """ A training trial for the HNNs, contains lots of boiler plate which is not necessary.
+        Feel free to use your own."""
+    def __init__(self,make_trainer,strict=True):
+        self.make_trainer = make_trainer
+        self.strict=strict
+    def __call__(self,cfg):
+        try:
+            cfg.pop('local_rank',None) #TODO: properly handle distributed
+            resume = cfg.pop('resume',False)
+            save = cfg.pop('save',False)
+            i = cfg['trial']
+            orig_suffix = cfg.setdefault('trainer_config',{}).get('log_suffix','')
+            cfg['trainer_config']['log_suffix'] = os.path.join(orig_suffix,f'trial{i}/')
+            trainer = self.make_trainer(**cfg)
+            trainer.logger.add_scalars('config',flatten_dict(cfg))
+            trainer.train(cfg['num_epochs'])
+            if save: cfg['saved_at']=trainer.save_checkpoint()
+            outcome = trainer.ckpt['outcome']
+            trajectories = []
+            for mb in trainer.dataloaders['test']:
+                trajectories.append(pred_and_gt_normalization( 
+                    trainer.model,
+                    mb,
+                    trainer.normalization
+                ))
+            torch.save(np.concatenate(trajectories),f"{cfg['trainer_config']['log_dir']}/{'scalars_HNNs'}_{trainer.normalization['method']}_{i}.t")
         except Exception as e:
             if self.strict: raise
             outcome = e
