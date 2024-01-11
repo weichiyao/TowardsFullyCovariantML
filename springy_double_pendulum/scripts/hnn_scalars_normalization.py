@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import jax.random as jr
 jr.PRNGKey(42)
 from scalaremlp_fc.scalarhnn import InvarianceLayer_objax 
-from trainer.hamiltonian_dynamics import IntegratedDynamicsNormalizationTrainer,DoubleSpringPendulum,hnnScalars_trial
+from trainer.hamiltonian_dynamics import IntegratedDynamicsNormalizationTrainer,DoubleSpringPendulum,hnnScalars_normalization_trial
 from trainer.hamiltonian_dynamics import generate_trajectory_wz0s, GetHamiltonianDataset, GetHamiltonianDatasetWrapped
 from torch.utils.data import DataLoader
 from oil.utils.utils import FixedNumpySeed,FixedPytorchSeed
@@ -173,6 +173,6 @@ def makeTrainerScalars(*,
     return IntegratedDynamicsNormalizationTrainer(model,dataloaders,opt_constr,lr_sched,normalization,**trainer_config)
 
 if __name__ == "__main__":
-    Trial = hnnScalars_trial(makeTrainerScalars)
+    Trial = hnnScalars_normalization_trial(makeTrainerScalars)
     cfg,outcome = Trial(argupdated_config(makeTrainerScalars.__kwdefaults__))
     print(outcome)
