@@ -31,13 +31,11 @@ def makeTrainerScalars(*,dataset=DoubleSpringPendulum,num_epochs=2000,ndata=5000
     dataloaders['Train'] = dataloaders['train']
     
     model = InvarianceLayer_objax(**net_config)
-    opt_constr = objax.optimizer.Adam
-    # lr_sched = lambda e: lr#*cosLr(num_epochs)(e)#*min(1,e/(num_epochs/10))
+    opt_constr = objax.optimizer.Adam 
     lr_sched = lambda e: lr if (e < 200) else (lr*0.4 if e < 1000 else (lr*0.1))   
     return IntegratedDynamicsTrainer(model,dataloaders,opt_constr,lr_sched,**trainer_config)
 
 if __name__ == "__main__":
-    Trial = hnnScalars_trial(makeTrainerScalars)
-    # cfg,outcome = Trial(argupdated_config(makeTrainerScalars.__kwdefaults__,namespace=(emlp.groups,emlp.nn)))
+    Trial = hnnScalars_trial(makeTrainerScalars) 
     cfg, outcome = Trial(argupdated_config(makeTrainerScalars.__kwdefaults__))
     print(outcome)
