@@ -15,7 +15,6 @@ import numpy as np
 from functools import partial 
 
 from .classifier import Regressor 
-#from emlp_jax.model_trainer import RegressorPlus
 
 ## Code to rollout a Hamiltonian system
 
@@ -101,7 +100,7 @@ class HamiltonianDataset(Dataset):
         return (self.Zs[i, 0], self.T), self.Zs[i]
 
     def integrate(self,z0s,ts):
-        return HamiltonianFlow(self.H,z0s, ts)
+        return HamiltonianFlow(self.H, z0s, ts)
     
     def generate_trajectory_data(self, n_systems, dt, integration_time, bs=100):
         """ Returns ts: (n_systems, traj_len) zs: (n_systems, traj_len, z_dim) """
