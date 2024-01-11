@@ -49,7 +49,6 @@ and (learned-g) an *O*(3)-equivariant model that uses the position and momenta a
 The results show that *O*(3)-equivariance permits the learning of the gravity vector from data with only minimal impact on performance.
 
 To reproduce the experimental results, please find the [notebook](https://github.com/weichiyao/TowardsFullyCovariantML/blob/main/springy_double_pendulum/notebooks/passive_O3_symmetry.ipynb) under the subfolder [springy_double_pendulum](https://github.com/weichiyao/TowardsFullyCovariantML/tree/main/springy_double_pendulum). 
-It depends on the [ScalarEMLP](https://github.com/weichiyao/ScalarEMLP) package. 
 
 ### Covariant vs non-covariant data normalization example on springy double pendulum
 To make contemporary neural network models numerically stable, it is conventional to normalize the input
@@ -62,4 +61,3 @@ and empirically show that non-covariant data normalization can lead to severely 
 whereas covariant data normalization does not.
 
 To reproduce the experimental results, please find the [notebook](https://github.com/weichiyao/TowardsFullyCovariantML/blob/main/springy_double_pendulum/notebooks/data_normalization.ipynb) under the subfolder [springy_double_pendulum](https://github.com/weichiyao/TowardsFullyCovariantML/tree/main/springy_double_pendulum). 
-It depends on the [ScalarEMLP](https://github.com/weichiyao/ScalarEMLP) package. 
